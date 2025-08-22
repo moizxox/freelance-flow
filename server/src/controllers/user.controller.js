@@ -54,8 +54,36 @@ const addHoursToProject = asyncHandler(async (req, res, next) => {
 const getUserProjects = asyncHandler(async (req, res, next) => {
   const userId = req.params.userId;
   if (!isValidObjectId(userId)) return next(new CustomError(400, "Invalid User Id"));
-  const projects = await UserProject.find({ userId }).populate("project", "title description hourlyUSD");
+  const projects = await UserProject.find({ userId }).populate("project", "title perHourRate");
   return res.status(200).json({ success: true, data: projects });
 });
 
-export { addHoursToProject, getUserProjects };
+//Get User Payments
+// ----------------
+const getUserPaymentsDetails = asyncHandler(async (req, res, next) => {
+  const userId = req.params.userId;
+  if (!isValidObjectId(userId)) return next(new CustomError(400, "Invalid User Id"));
+  const user = await Auth.findById(userId);
+  if (!user) return next(new CustomError(404, "User Not Found"));
+
+  const paymentDetails = await UserPrice.find({ userId }).populate("project", "title perHourRate");
+
+  return res.status(200).json({ success: true, data: paymentDetails });
+});
+
+const getUserPayments = asyncHandler(async (req, res, next) => {
+  const userId = req.params.userId;
+  if (!isValidObjectId(userId)) return next(new CustomError(400, "Invalid User Id"));
+  const user = await Auth.findById(userId);
+  if (!user) return next(new CustomError(404, "User Not Found"));
+
+  const payments = await UserPrice.find({ userId }).populate("project", "title perHourRate");
+
+  const totalHours = payments.reduce((total, payment) => total + payment.hours, 0);
+  const totalAmount = payments.reduce((total, payment) => total + payment.payment.usdPrice, 0);
+  const totalPkrAmount = payments.reduce((total, payment) => total + payment.payment.pkrPrice, 0);
+
+  return res.status(200).json({ success: true, data: payments });
+});
+
+export { addHoursToProject, getUserProjects, getUserPaymentsDetails, getUserPayments };
