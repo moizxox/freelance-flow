@@ -2,88 +2,91 @@ import { Project } from "../models/projects.model.js";
 import { Auth } from "../models/auth.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { CustomError } from "../utils/customError.js";
+import { UserProject } from "../models/user-project.model.js";
 
 // Add Project
 // -----------
 const addProject = asyncHandler(async (req, res, next) => {
-  const { title, description, hourlyUSD, freelancersId } = req.body;
+  const { title, description, users } = req.body;
 
-  if (!title || !description || !hourlyUSD) {
-    return next(new CustomError(400, "Please provide all required fields"));
-  }
-
-  // If freelancers are passed, validate them
-  let validFreelancers = [];
-  if (freelancersId && freelancersId.length > 0) {
-    validFreelancers = await Auth.find({
-      _id: { $in: freelancersId },
-      role: "freelancer"
-    });
-    if (validFreelancers.length !== freelancersId.length) {
-      return next(new CustomError(400, "One or more freelancer IDs are invalid"));
-    }
-  }
+  if (!title || !description) return next(new CustomError(400, "Please provide all required fields"));
 
   const project = await Project.create({
     title,
     description,
-    hourlyUSD,
-    assignedFreelancers: validFreelancers.map(f => f._id)
+    totalHours: 0,
   });
 
-  return res.status(201).json({
-    success: true,
-    message: "Project added successfully",
-    data: project
-  });
+  if (!project) return next(new CustomError(400, "Error while creating project"));
+
+  if (users && users.length > 0) {
+    const validFreelancers = await Auth.find({
+      _id: { $in: users.userId },
+      role: "freelancer",
+    });
+    if (validFreelancers.length !== users.length) {
+      return next(new CustomError(400, "One or more freelancer IDs are invalid"));
+    }
+
+    validFreelancers.map(async (f, i) => {
+      const userProject = await UserProject.create({
+        projectId: project._id,
+        userId: f._id,
+        perHourRate: users[i].perHourRate,
+      });
+
+      project.users.push(f._id);
+      await project.save();
+    });
+  }
+
+  return res.status(201).json({ success: true, message: "Project created successfully", data: project });
 });
 
 // Get All Projects
 // ----------------
 const getAllProjects = asyncHandler(async (req, res, next) => {
-  const projects = await Project.find().populate("assignedFreelancers", "name email role");
+  const projects = await Project.find().populate("users");
   return res.status(200).json({ success: true, data: projects });
 });
 
 // Update Project
 // --------------
 const updateProject = asyncHandler(async (req, res, next) => {
-  const { title, description, hourlyUSD, freelancersId } = req.body;
+  const { title, description, users, projectId } = req.body;
 
-  if (!title || !description || !hourlyUSD) {
-    return next(new CustomError(400, "Please provide all required fields"));
-  }
+  const project = await Project.findByIdAndUpdate(projectId);
+  if (!project) return next(new CustomError(404, "Project not found"));
 
-  let validFreelancers = [];
-  if (freelancersId && freelancersId.length > 0) {
-    validFreelancers = await Auth.find({
-      _id: { $in: freelancersId },
-      role: "freelancer"
+  if (title) project.title = title;
+  if (description) project.description = description;
+
+  if (users && users.length > 0) {
+    const validFreelancers = await Auth.find({
+      _id: { $in: users.userId },
+      role: "freelancer",
     });
-    if (validFreelancers.length !== freelancersId.length) {
+    if (validFreelancers.length !== users.length) {
       return next(new CustomError(400, "One or more freelancer IDs are invalid"));
     }
+
+    validFreelancers.map(async (f, i) => {
+      await UserProject.create({
+        projectId: project._id,
+        userId: f._id,
+        perHourRate: users[i].perHourRate,
+      });
+
+      project.users.push(f._id);
+    });
   }
 
-  const project = await Project.findByIdAndUpdate(
-    req.params.id,
-    {
-      title,
-      description,
-      hourlyUSD,
-      assignedFreelancers: validFreelancers.map(f => f._id)
-    },
-    { new: true }
-  ).populate("assignedFreelancers", "name email role");
-
-  if (!project) {
-    return next(new CustomError(404, "Project not found"));
-  }
+  await project.save();
 
   return res.status(200).json({
     success: true,
     message: "Project updated successfully",
-    data: project
+    data: project,
   });
 });
 
@@ -98,45 +101,42 @@ const deleteProject = asyncHandler(async (req, res, next) => {
 // Assign Freelancers
 // ------------------
 const assignFreelancers = asyncHandler(async (req, res, next) => {
-  const { projectId, freelancersId } = req.body;
+  const { projectId, users } = req.body;
 
-  if (!projectId || !freelancersId || !Array.isArray(freelancersId)) {
+  if (!projectId || !users || !Array.isArray(users)) {
     return next(new CustomError(400, "Project ID and an array of Freelancer IDs are required"));
   }
 
-  // Validate freelancer IDs
-  const validFreelancers = await Auth.find({
-    _id: { $in: freelancersId },
-    role: "freelancer"
-  });
+  const project = await Project.findById(projectId);
+  if (!project) return next(new CustomError(404, "Project not found"));
 
-  if (validFreelancers.length !== freelancersId.length) {
+  if (!users.length > 0) return next(new CustomError(400, "No freelancers provided"));
+
+  const validFreelancers = await Auth.find({
+    _id: { $in: users.userId },
+    role: "freelancer",
+  });
+  if (validFreelancers.length !== users.length) {
     return next(new CustomError(400, "One or more freelancer IDs are invalid"));
   }
 
-  const project = await Project.findByIdAndUpdate(
-    projectId,
-    { $addToSet: { assignedFreelancers: { $each: freelancersId } } },
-    { new: true }
-  ).populate("assignedFreelancers", "name email role");
+  validFreelancers.map(async (f, i) => {
+    await UserProject.create({
+      projectId: project._id,
+      userId: f._id,
+      perHourRate: users[i].perHourRate,
+    });
 
-  if (!project) {
-    return next(new CustomError(404, "Project not found"));
-  }
+    project.users.push(f._id);
+  });
+
+  await project.save();
 
   return res.status(200).json({
     success: true,
     message: "Freelancers assigned successfully",
-    data: project
+    data: project,
   });
-});
-
-// Get Assigned Freelancers
-// ------------------------
-const getAssignedFreelancers = asyncHandler(async (req, res, next) => {
-  const project = await Project.findById(req.params.projectId).populate("assignedFreelancers", "name email");
-  if (!project) return next(new CustomError(404, "Project not found"));
-  return res.status(200).json({ success: true, data: project.assignedFreelancers });
 });
 
 // Remove Freelancer
@@ -148,29 +148,25 @@ const removeFreelancer = asyncHandler(async (req, res, next) => {
     return next(new CustomError(400, "Project ID and Freelancer ID are required"));
   }
 
-  const project = await Project.findByIdAndUpdate(
-    projectId,
-    { $pull: { assignedFreelancers: freelancerId } },
-    { new: true }
-  ).populate("assignedFreelancers", "name");
+  const project = await Project.findById(projectId);
+  if (!project) return next(new CustomError(404, "Project not found"));
 
-  if (!project) {
-    return next(new CustomError(404, "Project not found"));
-  }
+  const freelancer = await Auth.findById(freelancerId);
+  if (!freelancer || freelancer.role !== "freelancer") return next(new CustomError(404, "Freelancer not found"));
+
+  const userProject = await UserProject.findOne({ projectId, userId: freelancerId });
+  if (!userProject) return next(new CustomError(404, "User not found for this project"));
+
+  userProject.remove();
+
+  project.users.pull(freelancerId);
+  await project.save();
 
   return res.status(200).json({
     success: true,
     message: "Freelancer removed successfully",
-    data: project
+    data: project,
   });
 });
 
-export {
-  addProject,
-  getAllProjects,
-  updateProject,
-  deleteProject,
-  assignFreelancers,
-  getAssignedFreelancers,
-  removeFreelancer
-};
+export { addProject, getAllProjects, updateProject, deleteProject, assignFreelancers, getAssignedFreelancers, removeFreelancer };
