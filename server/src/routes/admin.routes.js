@@ -10,3 +10,4 @@ router.post("/assign-freelancers", assignFreelancers);
 router.get("/:projectId/freelancers", getAssignedFreelancers);
 router.post("/remove-freelancer", removeFreelancer);
 
+export default router;

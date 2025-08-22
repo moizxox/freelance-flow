@@ -8,7 +8,6 @@ import { returnMailPage } from "../utils/htmlPages.js";
 import { JWTService } from "../utils/jwtService.js";
 import { sendMail } from "../utils/sendMail.js";
 import { sendToken } from "../utils/sendToken.js";
-import { removeFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js";
 
 // create user
 // ---------
@@ -95,30 +94,6 @@ const getMyProfile = asyncHandler(async (req, res, next) => {
 
 // update my profile
 // -----------------
-const updateMyProfile = asyncHandler(async (req, res, next) => {
-  const userId = req?.user?._id;
-  if (!isValidObjectId(userId)) return next(new CustomError(401, "Invalid User Id"));
-  const user = await Auth.findById(userId);
-  if (!user) return next(new CustomError(402, "User Not Found"));
-  if (!req?.body) return next(new CustomError(403, "Please Provide at least one field"));
-  const image = req.file;
-  const { firstName, lastName, contact, address, country, state } = req.body;
-  if (!firstName && !lastName && !contact && !address && !country && !state && !image)
-    return next(new CustomError(403, "Please Provide at least one field"));
-  if (firstName) user.firstName = firstName;
-  if (lastName) user.lastName = lastName;
-  if (contact) user.contact = contact;
-  if (address) user.address = address;
-  if (country) user.country = country;
-  if (state) user.state = state;
-  if (image) {
-    if (user?.image?.public_id) await removeFromCloudinary(user?.image?.public_id, "image");
-    const newImage = await uploadOnCloudinary(image, "auth");
-    if (!newImage) return next(new CustomError(403, "Error While Uploading Image"));
-    user.image = { public_id: newImage.public_id, url: newImage.secure_url };
-  }
-  await user.save();
-  return res.status(200).json({ success: true, message: "Profile Updated Successfully" });
-});
 
-export { forgetPassword, getMyProfile, login, logout, register, resetPassword, updateMyProfile };
+
+export { forgetPassword, getMyProfile, login, logout, register, resetPassword };
