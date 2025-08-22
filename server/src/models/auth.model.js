@@ -10,16 +10,6 @@ const authSchema = new mongoose.Schema(
     role: { type: String,enum:["freelancer","admin"], default: "freelancer" },
     isApproved:{type:Boolean, default:false},
     isAdmin:{type:Boolean, default:false},
-    payment:[{
-      project: { type: mongoose.Schema.Types.ObjectId, ref: "Project", required: true },
-      hours: { type: Number, required: true },
-      status: { type: String, enum: ["pending", "approved", "rejected"], default: "pending" },
-      date: { type: Date, default: Date.now }
-    }],
-    paid:[{
-      piadAmount: { type: Number, required: true },
-      date: { type: Date, default: Date.now }
-    }]
   },
   { timestamps: true }
 );
