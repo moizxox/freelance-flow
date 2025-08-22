@@ -1,5 +1,5 @@
 import express from "express";
-import { addProject } from "../controllers/admin.controller.js";
+import { addProject, assignFreelancers, deleteProject, getAllProjects, getAssignedFreelancers, removeFreelancer, updateProject } from "../controllers/admin.controller.js";
 const router = express.Router();
 
 router.post("/add-project", addProject);

@@ -13,8 +13,9 @@ const projectSchema = new mongoose.Schema(
         default: "active" 
       },
       assignedFreelancers: [
-        { type: mongoose.Schema.Types.ObjectId, ref: "User" }
+        { type: mongoose.Schema.Types.ObjectId, ref: "Auth" }
       ],
+      totalHours:{type:Number, default:0},
     },
     { timestamps: true }
   );

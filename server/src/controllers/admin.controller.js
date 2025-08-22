@@ -1,5 +1,5 @@
 import { Project } from "../models/projects.model.js";
-import { User } from "../models/user.model.js";
+import { Auth } from "../models/auth.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { CustomError } from "../utils/customError.js";
 
@@ -15,7 +15,7 @@ const addProject = asyncHandler(async (req, res, next) => {
   // If freelancers are passed, validate them
   let validFreelancers = [];
   if (freelancersId && freelancersId.length > 0) {
-    validFreelancers = await User.find({
+    validFreelancers = await Auth.find({
       _id: { $in: freelancersId },
       role: "freelancer"
     });
@@ -56,7 +56,7 @@ const updateProject = asyncHandler(async (req, res, next) => {
 
   let validFreelancers = [];
   if (freelancersId && freelancersId.length > 0) {
-    validFreelancers = await User.find({
+    validFreelancers = await Auth.find({
       _id: { $in: freelancersId },
       role: "freelancer"
     });
@@ -105,7 +105,7 @@ const assignFreelancers = asyncHandler(async (req, res, next) => {
   }
 
   // Validate freelancer IDs
-  const validFreelancers = await User.find({
+  const validFreelancers = await Auth.find({
     _id: { $in: freelancersId },
     role: "freelancer"
   });
