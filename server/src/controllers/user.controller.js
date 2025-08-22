@@ -4,50 +4,58 @@ import { Auth } from "../models/auth.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { CustomError } from "../utils/customError.js";
 
+const conversionRate = 254;
 
 //Add Hours To Project
 // -------------------
 const addHoursToProject = asyncHandler(async (req, res, next) => {
   const { projectId, hours, userId } = req.body;
 
-  if (!projectId || !hours) {
-    return next(new CustomError(400, "Project ID and Hours are required"));
-  }
-  
-  if (typeof hours !== 'number' || hours <= 0) {
-    return next(new CustomError(400, "Hours must be a positive number"));
-  }
-const user = await Auth.findById(userId);
-const project = await Project.findById(projectId);
-if (!user) return next(new CustomError(404, "User not found"));
-if (!project) return next(new CustomError(404, "Project not found"));
+  if (!hours || !projectId || !userId) return next(new CustomError(400, "Please Provide All Fields"));
 
-if(!project?.assignedFreelancers?.includes(userId)) return next(new CustomError(400, "User is not assigned to this project"));
+  if (!isValidObjectId(projectId)) return next(new CustomError(400, "Invalid Project Id"));
+  if (!isValidObjectId(userId)) return next(new CustomError(400, "Invalid User Id"));
 
-project.totalHours += hours;
-await project.save();
+  const project = await Project.findById(projectId);
+  if (!project) return next(new CustomError(404, "Project Not Found"));
 
-user.payment.push({
-  project: projectId,
-  hours,
-  date: new Date()
-});
-await user.save();
+  const user = await Auth.findById(userId);
+  if (!user) return next(new CustomError(404, "User Not Found"));
 
-  return res.status(200).json({
-    success: true,
-    message: "Hours added successfully",
-    data: {project,user}
+  const userForProject = await UserProject.findOne({ projectId, userId });
+  if (!userForProject) return next(new CustomError(404, "User Not Found For This Project"));
+
+  const hourRate = userForProject.perHourRate;
+  const amount = hourRate * hours;
+  const pkrAmount = amount * conversionRate;
+
+  project.totalHours += hours;
+  await project.save();
+
+  const userInPayment = await UserPrice.findOne({ userId });
+  if (!userInPayment) return next(new CustomError(404, "User Not Found In Payment"));
+  userInPayment.payment.push({
+    project: projectId,
+    hours,
+    payment: {
+      usdPrice: amount,
+      pkrPrice: pkrAmount,
+    },
+    status: "pending",
+    date: new Date(),
   });
+  await userInPayment.save();
+
+  return res.status(200).json({ success: true, message: "Hours added successfully" });
 });
 
 //Get User Projects
-// ---------------- 
+// ----------------
 const getUserProjects = asyncHandler(async (req, res, next) => {
-    const userId = req.params.userId;
-    if(!isValidObjectId(userId)) return next(new CustomError(400, "Invalid User Id"));
-const projects = await Project.find({ assignedFreelancers: userId }).populate("assignedFreelancers", "name email");
-return res.status(200).json({ success: true, data: projects });
+  const userId = req.params.userId;
+  if (!isValidObjectId(userId)) return next(new CustomError(400, "Invalid User Id"));
+  const projects = await UserProject.find({ userId }).populate("project", "title description hourlyUSD");
+  return res.status(200).json({ success: true, data: projects });
 });
 
 export { addHoursToProject, getUserProjects };
