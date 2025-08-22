@@ -1,19 +1,25 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
-import { imageSchema } from "./global.model.js";
 
 const authSchema = new mongoose.Schema(
   {
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
-    address: { type: String },
-    state: { type: String },
-    country: { type: String },
-    contact: { type: String },
     email: { type: String, required: true, unique: true },
-    image: { type: imageSchema },
     password: { type: String, required: true, select: false },
-    role: { type: String, default: "user" },
+    role: { type: String,enum:["freelancer","admin"], default: "freelancer" },
+    isApproved:{type:Boolean, default:false},
+    isAdmin:{type:Boolean, default:false},
+    payment:[{
+      project: { type: mongoose.Schema.Types.ObjectId, ref: "Project", required: true },
+      hours: { type: Number, required: true },
+      status: { type: String, enum: ["pending", "approved", "rejected"], default: "pending" },
+      date: { type: Date, default: Date.now }
+    }],
+    paid:[{
+      piadAmount: { type: Number, required: true },
+      date: { type: Date, default: Date.now }
+    }]
   },
   { timestamps: true }
 );
