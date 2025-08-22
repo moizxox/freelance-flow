@@ -29,7 +29,7 @@ const register = asyncHandler(async (req, res, next) => {
 });
 
 // login
-// ------
+// ------`
 const login = asyncHandler(async (req, res, next) => {
   if (!req?.body) return next(new CustomError(400, "Please Provide Email and Password"));
   const { email, password } = req.body;

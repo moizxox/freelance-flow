@@ -21,6 +21,12 @@ app.use(cookieParser());
 // routes
 app.get("/", (req, res) => res.status(200).json({ success: true, message: "Hello World!" }));
 app.use("/api/auth", AuthRoutes);
+app.use('/freelancer',()=>{
+  return res.status(200).json({ success: true, message: "Hello Freelancer!" });
+})
+app.use('/admin',()=>{
+  return res.status(200).json({ success: true, message: "Hello Admin!" });
+})
 
 // error handler
 app.use(errorHandler);
