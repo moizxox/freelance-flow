@@ -3,6 +3,7 @@ import { Auth } from "../models/auth.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { CustomError } from "../utils/customError.js";
 import { UserProject } from "../models/user-project.model.js";
+import { UserPrice } from "../models/user-pricing.model.js";
 
 const validateFreelancers = async (users) => {
   const ids = users.map((u) => u.userId);
@@ -25,6 +26,12 @@ const assignUsersToProject = async (project, users) => {
       projectId: project._id,
       userId: f._id,
       perHourRate: users[i].perHourRate,
+    });
+
+    await UserPrice.create({
+      userId: f._id,
+      payment: [],
+      paid: [],
     });
 
     // Prevent duplicate push in project.users
