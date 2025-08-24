@@ -13,15 +13,24 @@ const validateFreelancers = async (users) => {
 
 const assignUsersToProject = async (project, users) => {
   const validFreelancers = await validateFreelancers(users);
+
   for (let i = 0; i < validFreelancers.length; i++) {
     const f = validFreelancers[i];
+
+    // Check if UserProject already exists
+    const exists = await UserProject.findOne({ projectId: project._id, userId: f._id });
+    if (exists) continue;
+
     await UserProject.create({
       projectId: project._id,
       userId: f._id,
       perHourRate: users[i].perHourRate,
     });
+
+    // Prevent duplicate push in project.users
     if (!project.users.includes(f._id)) project.users.push(f._id);
   }
+
   await project.save();
   return project;
 };
@@ -64,6 +73,7 @@ const updateProject = asyncHandler(async (req, res, next) => {
 const deleteProject = asyncHandler(async (req, res, next) => {
   const project = await Project.findByIdAndDelete(req.params.id);
   if (!project) return next(new CustomError(404, "Project not found"));
+
   await UserProject.deleteMany({ projectId: req.params.id });
   return res.status(200).json({ success: true, message: "Project deleted successfully" });
 });
@@ -75,7 +85,6 @@ const assignFreelancers = asyncHandler(async (req, res, next) => {
 
   const project = await Project.findById(projectId);
   if (!project) return next(new CustomError(404, "Project not found"));
-
   if (users.length === 0) return next(new CustomError(400, "No freelancers provided"));
 
   await assignUsersToProject(project, users);

@@ -61,7 +61,7 @@ const getUserProjects = asyncHandler(async (req, res, next) => {
 //Get User Payments
 // ----------------
 const getUserPaymentsDetails = asyncHandler(async (req, res, next) => {
-  const userId = req.params.userId;
+  const userId = req._id;
   if (!isValidObjectId(userId)) return next(new CustomError(400, "Invalid User Id"));
   const user = await Auth.findById(userId);
   if (!user) return next(new CustomError(404, "User Not Found"));
